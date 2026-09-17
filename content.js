@@ -12,8 +12,11 @@
 
 const CONFIG = {
   // Để trống ("") thì tool TỰ DÒ. Nếu tự dò sai, điền selector vào đây.
-  promptSelector: "",        // vd: 'textarea[placeholder*="create"]'
+  promptSelector: 'div.ProseMirror[contenteditable="true"]',
   generateSelector: "",      // vd: 'button[aria-label="Generate"]'
+  referenceMenuSelector: 'button[aria-label="Thêm thành phần vào ô nhập câu lệnh"]',
+  referenceTabSelector: 'mat-list-item[role="tab"]',
+  referenceAddSelector: "button.detail-add-to-prompt-btn",
 
   // Cách submit: Flow này submit bằng phím ENTER nên để true (mặc định).
   // Nếu Flow của bạn cần click nút thì đổi false.
@@ -329,6 +332,54 @@ function clickFully(el) {
   el.click?.();
 }
 
+function clickOnce(el) {
+  el.click?.();
+}
+
+async function waitForElement(find, timeout = 5000) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const element = find();
+    if (element) return element;
+    await sleep(100);
+  }
+  return null;
+}
+
+async function addReferenceImage() {
+  const addMenu = await waitForElement(() => {
+    const button = document.querySelector(CONFIG.referenceMenuSelector);
+    return button && isVisible(button) && !isBtnDisabled(button) ? button : null;
+  });
+  if (!addMenu) return { ok: false, error: "Không tìm thấy nút + đang hiển thị." };
+  console.log("[h2dev_flow] Bước ảnh tham chiếu 1/3: click nút +");
+  clickOnce(addMenu);
+
+  const popup = await waitForElement(() =>
+    document.querySelector("flow-add-menu-popover-content, .add-menu-popover-container")
+  );
+  if (!popup) return { ok: false, error: "Đã click nút + nhưng popup thêm thành phần không mở." };
+
+  const uploadTab = await waitForElement(() =>
+    [...document.querySelectorAll(CONFIG.referenceTabSelector)].find(
+      (el) => /tệp tải lên|upload file/i.test(el.textContent || "") && isVisible(el)
+    )
+  );
+  if (!uploadTab) return { ok: false, error: "Không tìm thấy mục Tệp tải lên." };
+  console.log("[h2dev_flow] Bước ảnh tham chiếu 2/3: click Tệp tải lên");
+  clickOnce(uploadTab);
+
+  const addButton = await waitForElement(() => {
+    const button = document.querySelector(CONFIG.referenceAddSelector);
+    return button && isVisible(button) && !isBtnDisabled(button) ? button : null;
+  });
+  if (!addButton) return { ok: false, error: "Không tìm thấy nút Thêm vào câu lệnh." };
+  console.log("[h2dev_flow] Bước ảnh tham chiếu 3/3: click Thêm vào câu lệnh");
+  clickOnce(addButton);
+  await sleep(500);
+  return { ok: true };
+}
+
 // Gửi prompt CHẮC CHẮN: click nút gửi vừa được mở khoá + Enter, rồi
 // xác nhận đã gửi bằng cách kiểm tra ô prompt đã trống chưa. Thử lại vài lần.
 async function submitPromptReliably(input, disabledBefore) {
@@ -496,6 +547,11 @@ if (!window.__H2DEV_FLOW_LISTENER__) {
       STOP = true;
       sendResponse({ ok: true });
       return;
+    }
+
+    if (msg.type === "ADD_REFERENCE_IMAGE") {
+      addReferenceImage().then(sendResponse);
+      return true;
     }
 
     // Trả về toạ độ tâm ô prompt (để background click + gõ qua debugger),

@@ -29,15 +29,18 @@ Extension Chrome (mã nguồn mở, miễn phí) giúp nạp hàng loạt prompt
 
 ## 2. Cách dùng
 
-1. Mở một project trên **Google Flow** (`labs.google/fx/tools/flow`).
+1. Mở một project trên **Google Flow** (`https://flow.google.com/project/`).
 2. Bấm icon ⚡ để mở **side panel** bên phải.
 3. Đợi dòng trạng thái hiện **"Đã kết nối với Google Flow"** (xanh).
 4. Dán prompt vào ô — **mỗi dòng một prompt** (hoặc bấm *Tải file .txt*).
-5. Chọn thư mục lưu, bật/tắt đánh số, đặt thời gian nghỉ ngẫu nhiên.
-6. Bấm **Bắt đầu**. Tool sẽ chạy lần lượt: gõ prompt → bấm tạo → đợi xong → tải ảnh → nghỉ → prompt tiếp theo.
-7. Muốn ngừng giữa chừng thì bấm **Dừng**.
+5. Trong Google Flow, tải/chọn ảnh tham chiếu sẵn trong mục **Tệp tải lên**, sau đó bật toggle **Ảnh tham chiếu** trong tool. Tool sẽ chọn lại ảnh này trước mỗi prompt.
+6. Chọn thư mục lưu, bật/tắt đánh số, đặt thời gian nghỉ ngẫu nhiên.
+7. Bấm **Bắt đầu**. Tool sẽ chạy lần lượt: thêm ảnh tham chiếu → gõ prompt → bấm tạo → đợi xong → tải ảnh → nghỉ → prompt tiếp theo.
+8. Muốn ngừng giữa chừng thì bấm **Dừng**.
 
 Ảnh tải về nằm trong: `Thư-mục-Downloads / [tên thư mục bạn đặt] / 001_prompt.png`
+
+> Tool không tải ảnh lên thay bạn; ảnh tham chiếu phải được chọn sẵn trong Google Flow trước khi bật toggle.
 
 > Giữ side panel **mở** trong suốt quá trình chạy. Đóng panel là dừng hàng đợi.
 

@@ -7,6 +7,7 @@
 const $ = (id) => document.getElementById(id);
 const els = {
   prompts: $("prompts"),
+  useReference: $("useReference"),
   count: $("count"),
   loadTxt: $("loadTxt"),
   txtFile: $("txtFile"),
@@ -34,6 +35,7 @@ function saveSettings() {
     prompts: els.prompts.value,
     folder: els.folder.value,
     serial: els.serial.checked,
+    useReference: els.useReference.checked,
     delayMin: els.delayMin.value,
     delayMax: els.delayMax.value,
   });
@@ -43,6 +45,7 @@ async function loadSettings() {
   if (s.prompts != null) els.prompts.value = s.prompts;
   if (s.folder) els.folder.value = s.folder;
   if (s.serial != null) els.serial.checked = s.serial;
+  if (s.useReference != null) els.useReference.checked = s.useReference;
   if (s.delayMin != null) els.delayMin.value = s.delayMin;
   if (s.delayMax != null) els.delayMax.value = s.delayMax;
   refreshCount();
@@ -61,16 +64,19 @@ function refreshCount() {
 
 // ---------- Tìm tab Google Flow ----------
 async function getFlowTab() {
-  // URL có thể là /fx/tools/flow HOẶC /fx/vi/tools/flow (kèm mã ngôn ngữ)
-  const tabs = await chrome.tabs.query({ url: "https://labs.google/fx/*" });
-  return tabs.find((t) => /\/tools\/flow/.test(t.url || "")) || null;
+  const tabs = await chrome.tabs.query({ url: "https://flow.google.com/project/*" });
+  return tabs[0] || null;
 }
 
 // ---------- Gửi tin nhắn tới content script ----------
 function sendToTab(tabId, msg) {
   return new Promise((resolve) => {
     chrome.tabs.sendMessage(tabId, msg, (resp) => {
-      if (chrome.runtime.lastError) resolve(null);
+      if (chrome.runtime.lastError) {
+        const error = chrome.runtime.lastError.message;
+        console.warn("[h2dev_flow] Gửi lệnh tới Flow thất bại:", msg.type, error);
+        resolve({ ok: false, error });
+      }
       else resolve(resp);
     });
   });
@@ -80,7 +86,11 @@ function sendToTab(tabId, msg) {
 function sendToBg(msg) {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage(msg, (resp) => {
-      if (chrome.runtime.lastError) resolve(null);
+      if (chrome.runtime.lastError) {
+        const error = chrome.runtime.lastError.message;
+        console.warn("[h2dev_flow] Gửi lệnh tới background thất bại:", msg.type, error);
+        resolve({ ok: false, error });
+      }
       else resolve(resp);
     });
   });
@@ -95,7 +105,7 @@ async function checkConnection() {
   let resp = await sendToTab(tab.id, { type: "PING" });
 
   // không thấy content script -> tự tiêm lại rồi ping lần nữa (tự chữa)
-  if (!resp) {
+  if (!resp || !resp.ok) {
     try {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
@@ -108,7 +118,9 @@ async function checkConnection() {
     }
   }
 
-  if (!resp) return setConn(false, "Tải lại trang Flow (F5) rồi thử lại");
+  if (!resp || !resp.ok) {
+    return setConn(false, resp && resp.error ? resp.error : "Tải lại trang Flow (F5) rồi thử lại");
+  }
   // PING ok => coi như đã kết nối (lúc chạy bot sẽ focus để ô prompt hiện ra)
   if (resp.hasInput) setConn(true, "Đã kết nối với Google Flow");
   else setConn(true, "Đã kết nối (ô prompt sẽ nhận diện khi chạy)");
@@ -125,9 +137,12 @@ function renderQueue() {
   items.forEach((it, i) => {
     const li = document.createElement("li");
     li.className = "qitem " + it.status;
+    const error = it.error
+      ? `<span class="qerror">${escapeHtml(it.error)}</span>`
+      : "";
     li.innerHTML = `
       <span class="num">${i + 1}</span>
-      <span class="txt">${escapeHtml(it.prompt)}</span>
+      <span class="txt">${escapeHtml(it.prompt)}${error}</span>
       <span class="tag ${it.status}">${statusLabel(it.status)}</span>`;
     els.queue.appendChild(li);
   });
@@ -155,6 +170,13 @@ function escapeHtml(s) {
   return s.replace(/[&<>"]/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])
   );
+}
+
+function markItemError(index, message, status = "error") {
+  const error = String(message || "Không xác định được lỗi");
+  items[index].status = status;
+  items[index].error = error;
+  console.error(`[h2dev_flow] Prompt ${index + 1} lỗi:`, error);
 }
 
 // ---------- Tên file ----------
@@ -206,7 +228,6 @@ async function run() {
     setConn(false, "Chưa có prompt nào");
     return;
   }
-
   items = list.map((p) => ({ prompt: p, status: "pending" }));
   renderQueue();
 
@@ -220,17 +241,33 @@ async function run() {
     items[i].status = "generating";
     renderQueue();
 
-    // 1) lấy toạ độ ô prompt từ content script (+ chụp baseline ảnh)
+    // 1) thêm lại ảnh tham chiếu cho từng prompt
+    if (els.useReference.checked) {
+      const reference = await sendToTab(tab.id, { type: "ADD_REFERENCE_IMAGE" });
+      if (!running) { items[i].status = "pending"; break; }
+      if (!reference || !reference.ok) {
+        const error = reference && reference.error
+          ? reference.error
+          : "Không thêm được ảnh tham chiếu";
+        markItemError(i, error);
+        setConn(false, error);
+        renderQueue();
+        break;
+      }
+    }
+
+    // 2) lấy toạ độ ô prompt từ content script (+ chụp baseline ảnh)
     const box = await sendToTab(tab.id, { type: "GET_BOX" });
     if (!running) { items[i].status = "pending"; break; }
     if (!box || !box.ok) {
-      items[i].status = "error";
-      if (box && box.error) setConn(false, box.error);
+      const error = box && box.error ? box.error : "Không lấy được vị trí ô prompt";
+      markItemError(i, error);
+      setConn(false, error);
       renderQueue();
       continue;
     }
 
-    // 2) GÕ CHỮ THẬT + Enter qua background (chrome.debugger)
+    // 3) GÕ CHỮ THẬT + Enter qua background (chrome.debugger)
     const typed = await sendToBg({
       type: "DEBUG_SUBMIT",
       tabId: tab.id,
@@ -240,19 +277,20 @@ async function run() {
     });
     if (!running) { items[i].status = "pending"; break; }
     if (!typed || !typed.ok) {
-      items[i].status = "error";
+      const error = typed && typed.error
+        ? `Lỗi debugger: ${typed.error}`
+        : "Không gõ được prompt qua debugger";
+      markItemError(i, error);
       setConn(
         false,
-        typed && typed.error
-          ? "Lỗi debugger: " + typed.error + " (đóng DevTools F12 trên tab Flow rồi thử lại)"
-          : "Không gõ được (hãy đóng DevTools F12 trên tab Flow)"
+        `${error} (đóng DevTools F12 trên tab Flow rồi thử lại)`
       );
       renderQueue();
       // không tiếp tục nếu debugger lỗi
       break;
     }
 
-    // 3) chờ ảnh mới rồi tải
+    // 4) chờ ảnh mới rồi tải
     const resp = await sendToTab(tab.id, { type: "WAIT_IMAGE" });
     if (!running) { items[i].status = "pending"; break; }
 
@@ -261,13 +299,12 @@ async function run() {
         await downloadImage(resp.src, i + 1, items[i].prompt, tab.id);
         items[i].status = "done";
       } catch (e) {
-        console.warn("Download lỗi:", e);
-        items[i].status = "error";
+        markItemError(i, `Tải ảnh thất bại: ${e.message || e}`);
       }
     } else if (resp && resp.timeout) {
-      items[i].status = "timeout";
+      markItemError(i, "Quá thời gian chờ ảnh mới", "timeout");
     } else {
-      items[i].status = "error";
+      markItemError(i, resp && resp.error ? resp.error : "Flow không trả về ảnh kết quả");
     }
     renderQueue();
 
@@ -298,7 +335,7 @@ els.prompts.addEventListener("input", () => {
   refreshCount();
   saveSettings();
 });
-[els.folder, els.serial, els.delayMin, els.delayMax].forEach((el) =>
+[els.folder, els.serial, els.useReference, els.delayMin, els.delayMax].forEach((el) =>
   el.addEventListener("change", saveSettings)
 );
 els.loadTxt.addEventListener("click", () => els.txtFile.click());

@@ -177,7 +177,15 @@ textarea:focus, input:focus {
 @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 .qitem .num { color: var(--muted); min-width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
-.qitem .txt { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qitem .txt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qerror {
+  display: block;
+  margin-top: 3px;
+  color: var(--red);
+  font-size: 10px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 
 .tag {
   font-size: 10px; font-weight: 700; padding: 3px 8px;
