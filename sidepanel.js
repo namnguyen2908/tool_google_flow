@@ -6,15 +6,17 @@
 
 const $ = (id) => document.getElementById(id);
 const els = {
+  // Tabs
+  tabRun: $("tabRun"),
+  tabSettings: $("tabSettings"),
+  paneRun: $("paneRun"),
+  paneSettings: $("paneSettings"),
+
+  // Chạy prompt
   prompts: $("prompts"),
-  useReference: $("useReference"),
   count: $("count"),
   loadTxt: $("loadTxt"),
   txtFile: $("txtFile"),
-  folder: $("folder"),
-  serial: $("serial"),
-  delayMin: $("delayMin"),
-  delayMax: $("delayMax"),
   start: $("start"),
   stop: $("stop"),
   queue: $("queue"),
@@ -22,6 +24,17 @@ const els = {
   pfill: $("pfill"),
   conn: $("conn"),
   connText: $("connText"),
+
+  // Cài đặt
+  useReference: $("useReference"),
+  removeWatermark: $("removeWatermark"),
+  delayMin: $("delayMin"),
+  delayMax: $("delayMax"),
+  folder: $("folder"),
+  serial: $("serial"),
+  numFormat: $("numFormat"),
+  filePrefix: $("filePrefix"),
+  filenamePreview: $("filenamePreview"),
 };
 
 let running = false;
@@ -29,26 +42,51 @@ let items = []; // [{prompt, status}]
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// ---------- Điều khiển Tab ----------
+function setTab(name) {
+  if (name === "settings") {
+    els.tabSettings.classList.add("tab-btn--active");
+    els.tabRun.classList.remove("tab-btn--active");
+    els.paneSettings.classList.add("tab-pane--active");
+    els.paneRun.classList.remove("tab-pane--active");
+  } else {
+    els.tabRun.classList.add("tab-btn--active");
+    els.tabSettings.classList.remove("tab-btn--active");
+    els.paneRun.classList.add("tab-pane--active");
+    els.paneSettings.classList.remove("tab-pane--active");
+  }
+}
+
 // ---------- Lưu / khôi phục cài đặt ----------
 function saveSettings() {
   chrome.storage.local.set({
     prompts: els.prompts.value,
     folder: els.folder.value,
     serial: els.serial.checked,
+    numFormat: els.numFormat?.value || "1",
     useReference: els.useReference.checked,
+    removeWatermark: els.removeWatermark ? els.removeWatermark.checked : true,
     delayMin: els.delayMin.value,
     delayMax: els.delayMax.value,
+    filePrefix: els.filePrefix?.value != null ? els.filePrefix.value : "image",
   });
+  updateFilenamePreview();
 }
+
 async function loadSettings() {
   const s = await chrome.storage.local.get();
   if (s.prompts != null) els.prompts.value = s.prompts;
   if (s.folder) els.folder.value = s.folder;
   if (s.serial != null) els.serial.checked = s.serial;
+  if (s.numFormat != null && els.numFormat) els.numFormat.value = s.numFormat;
   if (s.useReference != null) els.useReference.checked = s.useReference;
+  if (s.removeWatermark != null && els.removeWatermark) els.removeWatermark.checked = s.removeWatermark;
   if (s.delayMin != null) els.delayMin.value = s.delayMin;
   if (s.delayMax != null) els.delayMax.value = s.delayMax;
+  if (s.filePrefix != null && els.filePrefix) els.filePrefix.value = s.filePrefix;
+  else if (els.filePrefix && !els.filePrefix.value) els.filePrefix.value = "image";
   refreshCount();
+  updateFilenamePreview();
 }
 
 // ---------- Đếm prompt ----------
@@ -69,12 +107,14 @@ async function getFlowTab() {
 }
 
 // ---------- Gửi tin nhắn tới content script ----------
-function sendToTab(tabId, msg) {
+function sendToTab(tabId, msg, quiet = false) {
   return new Promise((resolve) => {
     chrome.tabs.sendMessage(tabId, msg, (resp) => {
       if (chrome.runtime.lastError) {
         const error = chrome.runtime.lastError.message;
-        console.warn("[h2dev_flow] Gửi lệnh tới Flow thất bại:", msg.type, error);
+        if (!quiet) {
+          console.warn("[h2dev_flow] Gửi lệnh tới Flow thất bại:", msg.type, error);
+        }
         resolve({ ok: false, error });
       }
       else resolve(resp);
@@ -101,8 +141,8 @@ async function checkConnection() {
   const tab = await getFlowTab();
   if (!tab) return setConn(false, "Hãy mở một project Google Flow");
 
-  // thử ping
-  let resp = await sendToTab(tab.id, { type: "PING" });
+  // thử ping âm thầm trước (tránh báo đỏ rác console khi vừa reload extension)
+  let resp = await sendToTab(tab.id, { type: "PING" }, true);
 
   // không thấy content script -> tự tiêm lại rồi ping lần nữa (tự chữa)
   if (!resp || !resp.ok) {
@@ -112,7 +152,7 @@ async function checkConnection() {
         files: ["content.js"],
       });
       await new Promise((r) => setTimeout(r, 400));
-      resp = await sendToTab(tab.id, { type: "PING" });
+      resp = await sendToTab(tab.id, { type: "PING" }, false);
     } catch (e) {
       console.warn("[h2dev_flow] Không tiêm được content script:", e);
     }
@@ -179,36 +219,189 @@ function markItemError(index, message, status = "error") {
   console.error(`[h2dev_flow] Prompt ${index + 1} lỗi:`, error);
 }
 
-// ---------- Tên file ----------
+// ---------- Tên file & Xem trước ----------
 function safeName(s) {
-  return s
+  return (s || "")
     .replace(/[\\/:*?"<>|]/g, "")
     .replace(/\s+/g, "-")
     .slice(0, 50)
     .replace(/-+$/, "");
 }
+
 function buildFilename(serial, prompt) {
   const folder = safeName(els.folder.value || "h2dev_flow") || "h2dev_flow";
+  const rawRule = (els.filePrefix?.value || "").trim();
   const snippet = safeName(prompt) || "image";
-  const num = els.serial.checked ? String(serial).padStart(3, "0") + "_" : "";
-  return `${folder}/${num}${snippet}.png`;
+
+  // Định dạng số thứ tự (ví dụ: 1, 01, 001)
+  let numStr = "";
+  if (els.serial && els.serial.checked) {
+    const fmt = els.numFormat?.value || "1";
+    if (fmt === "3") {
+      numStr = String(serial).padStart(3, "0");
+    } else if (fmt === "2") {
+      numStr = String(serial).padStart(2, "0");
+    } else {
+      numStr = String(serial);
+    }
+  }
+
+  let finalName = "";
+
+  if (rawRule) {
+    let templ = rawRule;
+
+    // Hỗ trợ biến {prompt} nếu người dùng muốn chèn prompt
+    if (templ.includes("{prompt}")) {
+      templ = templ.replaceAll("{prompt}", snippet);
+    }
+
+    // Nếu trong quy tắc có sẵn {num} thì thay thế trực tiếp
+    if (numStr && templ.includes("{num}")) {
+      templ = templ.replaceAll("{num}", numStr);
+      finalName = safeName(templ);
+    } else {
+      const cleanBase = safeName(templ);
+      // Quy tắc chuẩn: nhập "image" & bật đánh số -> "image_1"
+      if (numStr) {
+        finalName = `${cleanBase}_${numStr}`;
+      } else {
+        finalName = cleanBase;
+      }
+    }
+  } else {
+    // Không nhập quy tắc -> mặc định lấy theo prompt
+    if (numStr) {
+      finalName = `${snippet}_${numStr}`;
+    } else {
+      finalName = snippet;
+    }
+  }
+
+  finalName = finalName || "image";
+  return `${folder}/${finalName}.png`;
+}
+
+function updateFilenamePreview() {
+  if (!els.filenamePreview) return;
+  const samplePrompt = "a-red-bicycle";
+  els.filenamePreview.textContent = buildFilename(1, samplePrompt);
+}
+
+// Đảm bảo đổi src sang dataURL sạch để tránh lỗi tainted canvas và xóa watermark 100%
+async function ensureDataUrl(src, tabId) {
+  if (!src) return src;
+  if (/^data:/i.test(src)) return src;
+
+  // Cách 1: Fetch trực tiếp trong extension context (nhờ host_permissions: ["<all_urls>"])
+  if (/^https?:/i.test(src)) {
+    try {
+      const res = await fetch(src);
+      if (res.ok) {
+        const blob = await res.blob();
+        const dataUrl = await new Promise((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(fr.result);
+          fr.onerror = reject;
+          fr.readAsDataURL(blob);
+        });
+        if (dataUrl) {
+          console.log("[h2dev_flow] ✓ Chuyển đổi https sang dataURL thành công (Extension fetch)");
+          return dataUrl;
+        }
+      }
+    } catch (e) {
+      console.log("[h2dev_flow] Extension fetch thất bại, thử qua tab Flow:", e.message || e);
+    }
+  }
+
+  // Cách 2: Gửi lệnh TODATAURL tới tab Flow (đọc blob hoặc trích xuất canvas DOM)
+  if (tabId) {
+    try {
+      const r = await sendToTab(tabId, { type: "TODATAURL", src });
+      if (r && r.ok && r.dataUrl) {
+        console.log("[h2dev_flow] ✓ Chuyển đổi sang dataURL thành công qua tab Flow");
+        return r.dataUrl;
+      }
+    } catch (e) {
+      console.log("[h2dev_flow] Lệnh TODATAURL tới tab Flow thất bại:", e.message || e);
+    }
+  }
+
+  // Cách 3: Load bằng thẻ Image trong sidepanel với crossOrigin = "anonymous"
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const cvs = document.createElement("canvas");
+          cvs.width = img.naturalWidth || img.width;
+          cvs.height = img.naturalHeight || img.height;
+          const ctx = cvs.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+          resolve(cvs.toDataURL("image/png"));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = reject;
+      img.src = src;
+    });
+    if (dataUrl) {
+      console.log("[h2dev_flow] ✓ Chuyển đổi sang dataURL thành công qua anonymous Image canvas");
+      return dataUrl;
+    }
+  } catch (e) {
+    console.warn("[h2dev_flow] Fallback anonymous Image thất bại:", e.message || e);
+  }
+
+  return src;
 }
 
 // ---------- Tải ảnh ----------
 async function downloadImage(src, serial, prompt, tabId) {
   let url = src;
-  // blob: thì nhờ content script đổi sang dataURL
-  if (!/^https?:/i.test(src)) {
-    const r = await sendToTab(tabId, { type: "TODATAURL", src });
-    if (r && r.dataUrl) url = r.dataUrl;
-    else throw new Error("Không tải được ảnh blob");
+  console.log("[h2dev_flow] Đang chuẩn bị tải ảnh...", src.slice(0, 80));
+
+  // Bước 1: Đổi src sang dataURL sạch
+  url = await ensureDataUrl(url, tabId);
+
+  // Bước 2: Xóa watermark bằng Adaptive Seamless Texture Cloning nếu bật
+  const shouldRemoveWatermark = !els.removeWatermark || els.removeWatermark.checked;
+  if (shouldRemoveWatermark) {
+    if (typeof removeWatermark === "function") {
+      if (/^data:/i.test(url)) {
+        console.log("[h2dev_flow] Đang tiến hành xóa watermark...");
+        try {
+          const cleanUrl = await removeWatermark(url);
+          if (cleanUrl && cleanUrl !== url) {
+            url = cleanUrl;
+            console.log("[h2dev_flow] ✓ Xóa watermark thành công!");
+          } else {
+            console.warn("[h2dev_flow] removeWatermark không thay đổi ảnh.");
+          }
+        } catch (err) {
+          console.warn("[h2dev_flow] Bỏ qua xóa watermark do lỗi:", err);
+        }
+      } else {
+        console.warn("[h2dev_flow] Không convert được ảnh sang dataURL, tải ảnh gốc.");
+      }
+    } else {
+      console.error("[h2dev_flow] Hàm removeWatermark không khả dụng.");
+    }
+  } else {
+    console.log("[h2dev_flow] Tùy chọn xóa watermark đang TẮT trong Cài đặt, giữ nguyên logo.");
   }
+
+  // Bước 3: Lưu file
   await chrome.downloads.download({
     url,
     filename: buildFilename(serial, prompt),
     conflictAction: "uniquify",
     saveAs: false,
   });
+  console.log("[h2dev_flow] ✓ Đã gửi lệnh download về máy.");
 }
 
 // ---------- Delay ngẫu nhiên ----------
@@ -331,13 +524,30 @@ async function stop() {
 }
 
 // ---------- Sự kiện ----------
+els.tabRun.addEventListener("click", () => setTab("run"));
+els.tabSettings.addEventListener("click", () => setTab("settings"));
+
 els.prompts.addEventListener("input", () => {
   refreshCount();
   saveSettings();
 });
-[els.folder, els.serial, els.useReference, els.delayMin, els.delayMax].forEach((el) =>
-  el.addEventListener("change", saveSettings)
-);
+
+[
+  els.folder,
+  els.serial,
+  els.numFormat,
+  els.useReference,
+  els.removeWatermark,
+  els.delayMin,
+  els.delayMax,
+  els.filePrefix,
+]
+  .filter(Boolean)
+  .forEach((el) => {
+    el.addEventListener("change", saveSettings);
+    el.addEventListener("input", saveSettings);
+  });
+
 els.loadTxt.addEventListener("click", () => els.txtFile.click());
 els.txtFile.addEventListener("change", (e) => {
   const f = e.target.files[0];

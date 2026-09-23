@@ -22,76 +22,155 @@
       <span id="connText">Đang kiểm tra kết nối…</span>
     </div>
 
-    <section class="block">
-      <label class="lbl" for="prompts">Danh sách prompt</label>
-      <p class="hint">Mỗi dòng là một prompt. Dán bao nhiêu dòng cũng được.</p>
-      <textarea
-        id="prompts"
-        rows="6"
-        placeholder="A red bicycle on a rainy street&#10;A watercolor fox in a forest&#10;..."
-      ></textarea>
-      <div class="row">
-        <button id="loadTxt" class="btn btn--ghost">📄 Tải file .txt</button>
-        <input id="txtFile" type="file" accept=".txt" hidden />
-        <span id="count" class="count">0 prompt</span>
+    <!-- Navigation Tabs -->
+    <nav class="tabs">
+      <button id="tabRun" class="tab-btn tab-btn--active" type="button">
+        <span class="tab-icon">🚀</span>
+        <span>Chạy Prompt</span>
+      </button>
+      <button id="tabSettings" class="tab-btn" type="button">
+        <span class="tab-icon">⚙️</span>
+        <span>Cài đặt</span>
+      </button>
+    </nav>
+
+    <!-- TAB 1: CHẠY PROMPT -->
+    <main id="paneRun" class="tab-pane tab-pane--active">
+      <section class="block">
+        <label class="lbl" for="prompts">Danh sách prompt</label>
+        <p class="hint">Mỗi dòng là một prompt. Dán bao nhiêu dòng cũng được.</p>
+        <textarea
+          id="prompts"
+          rows="6"
+          placeholder="A red bicycle on a rainy street&#10;A watercolor fox in a forest&#10;..."
+        ></textarea>
+        <div class="row">
+          <button id="loadTxt" class="btn btn--ghost" type="button">📄 Tải file .txt</button>
+          <input id="txtFile" type="file" accept=".txt" hidden />
+          <span id="count" class="count">0 prompt</span>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button id="start" class="btn btn--primary" type="button"><span>Bắt đầu</span></button>
+        <button id="stop" class="btn btn--danger" type="button" disabled>Dừng</button>
+      </div>
+
+      <div id="tip" class="tip">
+        💡 Trước khi chạy: <b>đóng DevTools (F12)</b> trên tab Flow, và <b>để yên thanh vàng</b> "đang gỡ lỗi" khi nó hiện.
+      </div>
+
+      <section class="block">
+        <div class="qhead">
+          <span class="lbl">Hàng đợi</span>
+          <span id="progress" class="count">—</span>
+        </div>
+        <div class="pbar"><div id="pfill" class="pfill"></div></div>
+        <ul id="queue" class="queue"></ul>
+      </section>
+    </main>
+
+    <!-- TAB 2: CÀI ĐẶT -->
+    <section id="paneSettings" class="tab-pane">
+      <!-- Nhóm 1: Tùy chọn xử lý ảnh -->
+      <div class="settings-group">
+        <div class="group-title">
+          <span>🎨</span> Xử lý ảnh & Tính năng
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label class="lbl" for="useReference">Ảnh tham chiếu</label>
+            <p class="hint">Tự động chọn ảnh từ mục Tệp tải lên của Flow trước khi sinh ảnh.</p>
+          </div>
+          <label class="switch">
+            <input id="useReference" type="checkbox" />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label class="lbl" for="removeWatermark">Xóa logo / watermark Gemini</label>
+            <p class="hint">Tự động xóa logo góc bằng Seamless Texture Cloning, không để lại vết mờ.</p>
+          </div>
+          <label class="switch">
+            <input id="removeWatermark" type="checkbox" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Nhóm 2: Thời gian tạo ảnh -->
+      <div class="settings-group">
+        <div class="group-title">
+          <span>⏱️</span> Nghỉ ngẫu nhiên giữa các ảnh
+        </div>
+        <div class="setting-item column">
+          <p class="hint">Nghỉ giữa 2 lần tạo ảnh liên tiếp giúp tránh bị Google giới hạn bot.</p>
+          <div class="row delays">
+            <input id="delayMin" type="number" min="0" value="5" />
+            <span>đến</span>
+            <input id="delayMax" type="number" min="0" value="15" />
+            <span>giây</span>
+          </div>
+          <p class="hint">Để 0 – 0 nếu bạn muốn chạy liên tục không chờ.</p>
+        </div>
+      </div>
+
+      <!-- Nhóm 3: Lưu trữ & Đặt tên file -->
+      <div class="settings-group">
+        <div class="group-title">
+          <span>💾</span> Lưu trữ & Quy tắc đặt tên file
+        </div>
+
+        <div class="setting-item column">
+          <label class="lbl" for="folder">Thư mục con (trong Downloads)</label>
+          <input id="folder" type="text" value="h2dev_flow" placeholder="h2dev_flow" />
+          <p class="hint folder-note">
+            Ảnh lưu vào: <b>Downloads / [thư mục trên]</b>. Chrome không cho chọn ổ đĩa khác.
+          </p>
+        </div>
+
+        <div class="setting-item column">
+          <label class="lbl" for="filePrefix">Tên file / Quy tắc đặt tên</label>
+          <input id="filePrefix" type="text" value="image" placeholder="Ví dụ: image hoặc {prompt}" />
+          <p class="hint">
+            Nhập tên bạn muốn (ví dụ nhập <code>image</code> và bật đánh số &rarr; <code>image_1.png</code>). Để trống sẽ lấy theo prompt.
+          </p>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label class="lbl" for="serial">Đánh số thứ tự</label>
+            <p class="hint">Tự động thêm số thứ tự vào tên file (vd: <code>_1</code>, <code>_2</code>...).</p>
+          </div>
+          <label class="switch">
+            <input id="serial" type="checkbox" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label class="lbl" for="numFormat">Định dạng số</label>
+            <p class="hint">Chọn kiểu hiển thị số thứ tự.</p>
+          </div>
+          <select id="numFormat" class="select-box">
+            <option value="1">1, 2, 3...</option>
+            <option value="2">01, 02, 03...</option>
+            <option value="3">001, 002, 003...</option>
+          </select>
+        </div>
+
+        <div class="preview-box">
+          <span class="preview-lbl">Xem trước tên file sẽ lưu:</span>
+          <code id="filenamePreview" class="preview-code">h2dev_flow/image_1.png</code>
+        </div>
       </div>
     </section>
 
-    <section class="block">
-      <label class="lbl">Ảnh tham chiếu</label>
-      <p class="hint">Bật nếu ảnh đã có sẵn trong mục Tệp tải lên của Google Flow.</p>
-      <label class="switch">
-        <input id="useReference" type="checkbox" />
-        <span class="slider"></span>
-      </label>
-    </section>
-
-    <section class="block grid2">
-      <div>
-        <label class="lbl" for="folder">Thư mục con (trong Downloads)</label>
-        <input id="folder" type="text" value="h2dev_flow" />
-      </div>
-      <div class="serial">
-        <label class="lbl">Đánh số</label>
-        <label class="switch">
-          <input id="serial" type="checkbox" checked />
-          <span class="slider"></span>
-        </label>
-      </div>
-    </section>
-
-    <p class="hint folder-note">
-      Ảnh lưu vào <b>Downloads / [tên trên]</b>. Chrome không cho chọn ổ đĩa khác.
-    </p>
-
-    <section class="block">
-      <label class="lbl">Nghỉ ngẫu nhiên giữa các ảnh (giây)</label>
-      <div class="row delays">
-        <input id="delayMin" type="number" min="0" value="5" />
-        <span>đến</span>
-        <input id="delayMax" type="number" min="0" value="15" />
-      </div>
-      <p class="hint">Giúp tránh bị Google coi là bot. Để 0–0 nếu muốn chạy liền.</p>
-    </section>
-
-    <div class="actions">
-      <button id="start" class="btn btn--primary"><span>Bắt đầu</span></button>
-      <button id="stop" class="btn btn--danger" disabled>Dừng</button>
-    </div>
-
-    <div id="tip" class="tip">
-      💡 Trước khi chạy: <b>đóng DevTools (F12)</b> trên tab Flow, và <b>để yên thanh vàng</b> "đang gỡ lỗi" khi nó hiện.
-    </div>
-
-    <section class="block">
-      <div class="qhead">
-        <span class="lbl">Hàng đợi</span>
-        <span id="progress" class="count">—</span>
-      </div>
-      <div class="pbar"><div id="pfill" class="pfill"></div></div>
-      <ul id="queue" class="queue"></ul>
-    </section>
-
+    <script src="lib/watermark.js"></script>
     <script src="sidepanel.js"></script>
   </body>
 </html>

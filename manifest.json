@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "description": "Nạp hàng loạt prompt và tự động sinh ảnh trên Google Flow, tự tải về. Bản khung mã nguồn mở cho cộng đồng.",
   "permissions": ["sidePanel", "downloads", "storage", "tabs", "scripting", "debugger"],
-  "host_permissions": ["https://flow.google.com/project/*"],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "background": {
     "service_worker": "background.js"
   },

@@ -514,89 +514,121 @@ async function runOne(prompt) {
   return { ok: true, src: res.src };
 }
 
-// ---------- 7. Đổi ảnh sang dataURL (dùng cho blob:) ----------
+// ---------- 7. Đổi ảnh sang dataURL (dùng cho blob: hoặc DOM) ----------
 async function toDataUrl(url) {
-  const res = await fetch(url);
-  const blob = await res.blob();
-  return await new Promise((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(fr.result);
-    fr.onerror = reject;
-    fr.readAsDataURL(blob);
-  });
+  // Cách 1: fetch trực tiếp (hoạt động tốt cho blob: cùng origin và cùng domain)
+  try {
+    const res = await fetch(url);
+    if (res.ok) {
+      const blob = await res.blob();
+      const d = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result);
+        fr.onerror = reject;
+        fr.readAsDataURL(blob);
+      });
+      if (d) return d;
+    }
+  } catch (e) {
+    console.log("[h2dev_flow] toDataUrl fetch không được, thử DOM canvas fallback:", e.message || e);
+  }
+
+  // Cách 2: Tìm thẻ <img> trong DOM đang hiển thị src này và vẽ lên canvas
+  try {
+    const imgEl = [...document.querySelectorAll("img")].find(
+      (img) => (img.currentSrc === url || img.src === url)
+    );
+    if (imgEl && (imgEl.naturalWidth || imgEl.width) > 0) {
+      const w = imgEl.naturalWidth || imgEl.width;
+      const h = imgEl.naturalHeight || imgEl.height;
+      const cvs = document.createElement("canvas");
+      cvs.width = w;
+      cvs.height = h;
+      const ctx = cvs.getContext("2d");
+      ctx.drawImage(imgEl, 0, 0, w, h);
+      return cvs.toDataURL("image/png");
+    }
+  } catch (e) {
+    console.log("[h2dev_flow] toDataUrl vẽ canvas từ DOM thất bại:", e.message || e);
+  }
+
+  throw new Error("Không thể trích xuất dataURL của ảnh");
 }
 
 // ---------- 8. Nhận lệnh từ side panel ----------
-// Chống đăng ký listener 2 lần (khi vừa tiêm khai báo vừa tiêm tay)
-if (!window.__H2DEV_FLOW_LISTENER__) {
-  window.__H2DEV_FLOW_LISTENER__ = true;
-
-  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (!msg || !msg.type) return;
-
-    if (msg.type === "PING") {
-      let hasInput = false;
-      try {
-        hasInput = !!findPromptInput();
-      } catch (_) {}
-      sendResponse({ ok: true, hasInput });
-      return; // đồng bộ
-    }
-
-    if (msg.type === "STOP") {
-      STOP = true;
-      sendResponse({ ok: true });
-      return;
-    }
-
-    if (msg.type === "ADD_REFERENCE_IMAGE") {
-      addReferenceImage().then(sendResponse);
-      return true;
-    }
-
-    // Trả về toạ độ tâm ô prompt (để background click + gõ qua debugger),
-    // đồng thời chụp baseline ảnh hiện có để lát so sánh.
-    if (msg.type === "GET_BOX") {
-      STOP = false;
-      (async () => {
-        try {
-          const input = await wakePromptBox();
-          if (!input) {
-            sendResponse({ ok: false, error: "Không tìm thấy ô prompt." });
-            return;
-          }
-          const r = input.getBoundingClientRect();
-          window.__h2dev_flow_baseline = new Set(getCompletedImages().map(srcKey));
-          sendResponse({
-            ok: true,
-            x: Math.round(r.left + r.width / 2),
-            y: Math.round(r.top + r.height / 2),
-          });
-        } catch (e) {
-          sendResponse({ ok: false, error: String(e) });
-        }
-      })();
-      return true;
-    }
-
-    // Chờ ảnh mới (so với baseline đã chụp ở GET_BOX) rồi trả src
-    if (msg.type === "WAIT_IMAGE") {
-      const baseline = window.__h2dev_flow_baseline || new Set();
-      waitForNewImage(baseline).then((res) => {
-        if (res.stopped) sendResponse({ ok: false, stopped: true });
-        else if (res.timeout) sendResponse({ ok: false, timeout: true });
-        else sendResponse({ ok: true, src: res.src });
-      });
-      return true;
-    }
-
-    if (msg.type === "TODATAURL") {
-      toDataUrl(msg.src)
-        .then((d) => sendResponse({ dataUrl: d }))
-        .catch((e) => sendResponse({ error: String(e) }));
-      return true;
-    }
-  });
-
-  console.log("[h2dev_flow] content script đã sẵn sàng trên Google Flow.");
+// Hỗ trợ cập nhật listener khi tiêm lại mà không gây xung đột / treo kết nối
+if (window.__H2DEV_FLOW_DISPATCHER__) {
+  try {
+    chrome.runtime.onMessage.removeListener(window.__H2DEV_FLOW_DISPATCHER__);
+  } catch (_) {}
 }
+
+window.__H2DEV_FLOW_DISPATCHER__ = (msg, sender, sendResponse) => {
+  if (!msg || !msg.type) return;
+
+  if (msg.type === "PING") {
+    let hasInput = false;
+    try {
+      hasInput = !!findPromptInput();
+    } catch (_) {}
+    sendResponse({ ok: true, hasInput });
+    return; // đồng bộ
+  }
+
+  if (msg.type === "STOP") {
+    STOP = true;
+    sendResponse({ ok: true });
+    return;
+  }
+
+  if (msg.type === "ADD_REFERENCE_IMAGE") {
+    addReferenceImage().then(sendResponse);
+    return true;
+  }
+
+  // Trả về toạ độ tâm ô prompt (để background click + gõ qua debugger),
+  // đồng thời chụp baseline ảnh hiện có để lát so sánh.
+  if (msg.type === "GET_BOX") {
+    STOP = false;
+    (async () => {
+      try {
+        const input = await wakePromptBox();
+        if (!input) {
+          sendResponse({ ok: false, error: "Không tìm thấy ô prompt." });
+          return;
+        }
+        const r = input.getBoundingClientRect();
+        window.__h2dev_flow_baseline = new Set(getCompletedImages().map(srcKey));
+        sendResponse({
+          ok: true,
+          x: Math.round(r.left + r.width / 2),
+          y: Math.round(r.top + r.height / 2),
+        });
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e) });
+      }
+    })();
+    return true;
+  }
+
+  // Chờ ảnh mới (so với baseline đã chụp ở GET_BOX) rồi trả src
+  if (msg.type === "WAIT_IMAGE") {
+    const baseline = window.__h2dev_flow_baseline || new Set();
+    waitForNewImage(baseline).then((res) => {
+      if (res.stopped) sendResponse({ ok: false, stopped: true });
+      else if (res.timeout) sendResponse({ ok: false, timeout: true });
+      else sendResponse({ ok: true, src: res.src });
+    });
+    return true;
+  }
+
+  if (msg.type === "TODATAURL") {
+    toDataUrl(msg.src)
+      .then((d) => sendResponse({ ok: true, dataUrl: d }))
+      .catch((e) => sendResponse({ ok: false, error: String(e) }));
+    return true;
+  }
+};
+
+chrome.runtime.onMessage.addListener(window.__H2DEV_FLOW_DISPATCHER__);
+console.log("[h2dev_flow] content script đã sẵn sàng trên Google Flow.");

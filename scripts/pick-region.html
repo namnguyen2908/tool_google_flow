@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chọn vùng logo — h2dev_flow</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f0f13;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 16px;
+      gap: 20px;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #a78bfa;
+      letter-spacing: -0.02em;
+    }
+    h1 span { color: #7c3aed; }
+
+    .hint {
+      font-size: 0.82rem;
+      color: #64748b;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* --- Drop zone --- */
+    #dropzone {
+      width: 100%;
+      max-width: 680px;
+      border: 2px dashed #374151;
+      border-radius: 14px;
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      color: #6b7280;
+      font-size: 0.9rem;
+    }
+    #dropzone:hover, #dropzone.drag { border-color: #7c3aed; background: #1a1025; color: #a78bfa; }
+    #dropzone input { display: none; }
+    #dropzone .icon { font-size: 2.4rem; display: block; margin-bottom: 10px; }
+
+    /* --- Canvas wrapper --- */
+    #canvas-wrap {
+      position: relative;
+      display: none;
+      max-width: 100%;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 0 2px #374151;
+      cursor: crosshair;
+    }
+    #canvas-wrap canvas { display: block; max-width: 100%; }
+
+    /* Overlay canvas cho selection */
+    #overlay {
+      position: absolute;
+      inset: 0;
+      cursor: crosshair;
+    }
+
+    /* --- Result box --- */
+    #result {
+      display: none;
+      background: #13131a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 20px 24px;
+      width: 100%;
+      max-width: 680px;
+      font-size: 0.85rem;
+    }
+    #result h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #475569;
+      margin-bottom: 14px;
+    }
+
+    .coords-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .coord-card {
+      background: #1a1a28;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .coord-card .label {
+      font-size: 0.7rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    .coord-card .value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #a78bfa;
+      font-variant-numeric: tabular-nums;
+    }
+    .coord-card .sub {
+      font-size: 0.68rem;
+      color: #475569;
+      margin-top: 2px;
+    }
+
+    .code-block {
+      background: #090910;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-family: 'Consolas', 'Cascadia Code', monospace;
+      font-size: 0.8rem;
+      color: #86efac;
+      white-space: pre;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .btn-copy {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #1e293b;
+      border: none;
+      border-radius: 6px;
+      color: #94a3b8;
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-copy:hover { background: #7c3aed; color: #fff; }
+    .btn-copy.copied { background: #16a34a; color: #fff; }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.82rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-ghost {
+      background: #1e293b;
+      color: #94a3b8;
+    }
+
+    /* image info */
+    #img-info {
+      font-size: 0.75rem;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+
+<h1>⊹ <span>h2dev_flow</span> · Chọn vùng logo</h1>
+<p class="hint">Tải ảnh lên, kéo chuột khoanh vùng logo → lấy tọa độ chính xác để điền vào <code>watermark.js</code></p>
+
+<!-- Drop zone -->
+<div id="dropzone">
+  <label for="fileInput" style="cursor:pointer;display:block;">
+    <span class="icon">🖼️</span>
+    <strong>Kéo thả ảnh vào đây</strong> hoặc <u>bấm để chọn file</u>
+    <input type="file" id="fileInput" accept="image/*" />
+  </label>
+</div>
+
+<!-- Canvas -->
+<div id="canvas-wrap">
+  <canvas id="imgCanvas"></canvas>
+  <canvas id="overlay"></canvas>
+</div>
+
+<span id="img-info"></span>
+
+<!-- Result -->
+<div id="result">
+  <h2>📐 Tọa độ vùng chọn</h2>
+  <div class="coords-grid">
+    <div class="coord-card">
+      <div class="label">X (pixel)</div>
+      <div class="value" id="val-x">—</div>
+      <div class="sub">từ trái</div>
+    </div>
+    <div class="coord-card">
+      <div class="label">Y (pixel)</div>
+      <div class="value" id="val-y">—</div>
+      <div class="sub">từ trên</div>
+    </div>
+    <div class="coord-card">
+      <div class="label">Rộng (W)</div>
+      <div class="value" id="val-w">—</div>
+      <div class="sub">pixel</div>
+    </div>
+    <div class="coord-card">
+      <div class="label">Cao (H)</div>
+      <div class="value" id="val-h">—</div>
+      <div class="sub">pixel</div>
+    </div>
+  </div>
+
+  <div style="position:relative;">
+    <div class="code-block" id="code-out"></div>
+    <button class="btn-copy" id="btnCopy" onclick="copyCode()">Copy</button>
+  </div>
+
+  <div class="actions" style="margin-top:12px;">
+    <button class="btn btn-ghost" onclick="clearSelection()">🔄 Chọn lại</button>
+  </div>
+</div>
+
+<script>
+  // ---- State ----
+  let naturalW = 0, naturalH = 0;   // kích thước ảnh thực tế (pixel)
+  let scaleX = 1, scaleY = 1;       // tỉ lệ canvas-display / natural
+
+  const imgCanvas  = document.getElementById("imgCanvas");
+  const overlay    = document.getElementById("overlay");
+  const ctx        = imgCanvas.getContext("2d");
+  const octx       = overlay.getContext("2d");
+  const wrap       = document.getElementById("canvas-wrap");
+  const result     = document.getElementById("result");
+  const dropzone   = document.getElementById("dropzone");
+  const imgInfo    = document.getElementById("img-info");
+
+  let isDragging = false;
+  let startX = 0, startY = 0;       // tọa độ trên overlay (display px)
+  let selRect = null;                // { x, y, w, h } — display px
+
+  // ---- Load ảnh ----
+  function loadImage(file) {
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        naturalW = img.naturalWidth;
+        naturalH = img.naturalHeight;
+
+        // Giới hạn chiều rộng hiển thị = 900px (max-width thực tế)
+        const maxW = Math.min(900, window.innerWidth - 32);
+        const scale = Math.min(1, maxW / naturalW);
+        const dispW = Math.round(naturalW * scale);
+        const dispH = Math.round(naturalH * scale);
+
+        imgCanvas.width  = dispW;
+        imgCanvas.height = dispH;
+        overlay.width    = dispW;
+        overlay.height   = dispH;
+
+        ctx.drawImage(img, 0, 0, dispW, dispH);
+
+        // Tỉ lệ để quy ngược display→natural
+        scaleX = naturalW / dispW;
+        scaleY = naturalH / dispH;
+
+        imgInfo.textContent = `Kích thước ảnh: ${naturalW} × ${naturalH} px  |  Hiển thị: ${dispW} × ${dispH} px`;
+        wrap.style.display = "block";
+        dropzone.style.display = "none";
+        result.style.display = "none";
+        selRect = null;
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ---- File input ----
+  document.getElementById("fileInput").addEventListener("change", (e) => {
+    loadImage(e.target.files[0]);
+  });
+
+  // ---- Drag & drop ----
+  dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("drag"); });
+  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag"));
+  dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("drag");
+    loadImage(e.dataTransfer.files[0]);
+  });
+
+  // ---- Vẽ selection ----
+  function getRelPos(e) {
+    const rect = overlay.getBoundingClientRect();
+    // Hỗ trợ touch
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: Math.max(0, Math.min(overlay.width,  clientX - rect.left)),
+      y: Math.max(0, Math.min(overlay.height, clientY - rect.top)),
+    };
+  }
+
+  function drawSelection(x, y, w, h) {
+    octx.clearRect(0, 0, overlay.width, overlay.height);
+
+    // Vùng mờ bên ngoài
+    octx.fillStyle = "rgba(0,0,0,0.45)";
+    octx.fillRect(0, 0, overlay.width, overlay.height);
+
+    // Xóa vùng chọn để thấy ảnh bên dưới
+    octx.clearRect(x, y, w, h);
+
+    // Viền vùng chọn
+    octx.strokeStyle = "#a78bfa";
+    octx.lineWidth = 2;
+    octx.setLineDash([6, 3]);
+    octx.strokeRect(x, y, w, h);
+
+    // Góc highlight
+    const cs = 10;
+    octx.strokeStyle = "#fff";
+    octx.lineWidth = 2.5;
+    octx.setLineDash([]);
+    [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([cx,cy]) => {
+      const sx = cx === x ? 1 : -1;
+      const sy = cy === y ? 1 : -1;
+      octx.beginPath();
+      octx.moveTo(cx + sx*cs, cy);
+      octx.lineTo(cx, cy);
+      octx.lineTo(cx, cy + sy*cs);
+      octx.stroke();
+    });
+
+    // Kích thước realtime
+    const natX = Math.round(Math.min(x, x+w) * scaleX);
+    const natY = Math.round(Math.min(y, y+h) * scaleY);
+    const natW = Math.round(Math.abs(w) * scaleX);
+    const natH = Math.round(Math.abs(h) * scaleY);
+    octx.fillStyle = "rgba(124,58,237,0.85)";
+    const label = `${natW} × ${natH}`;
+    octx.font = "bold 12px Segoe UI, sans-serif";
+    const tw = octx.measureText(label).width;
+    const lx = Math.min(x + (w > 0 ? w : 0) + 6, overlay.width - tw - 10);
+    const ly = Math.max(y + (h > 0 ? 0 : h) - 6, 18);
+    octx.fillRect(lx - 4, ly - 14, tw + 8, 20);
+    octx.fillStyle = "#fff";
+    octx.fillText(label, lx, ly);
+  }
+
+  overlay.addEventListener("mousedown", (e) => {
+    const pos = getRelPos(e);
+    startX = pos.x; startY = pos.y;
+    isDragging = true;
+    result.style.display = "none";
+  });
+
+  overlay.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+    const pos = getRelPos(e);
+    drawSelection(startX, startY, pos.x - startX, pos.y - startY);
+  });
+
+  overlay.addEventListener("mouseup", (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    const pos = getRelPos(e);
+    const rx = Math.round(Math.min(startX, pos.x));
+    const ry = Math.round(Math.min(startY, pos.y));
+    const rw = Math.round(Math.abs(pos.x - startX));
+    const rh = Math.round(Math.abs(pos.y - startY));
+    selRect = { x: rx, y: ry, w: rw, h: rh };
+
+    if (rw < 4 || rh < 4) {
+      // Vùng quá nhỏ, bỏ qua
+      octx.clearRect(0, 0, overlay.width, overlay.height);
+      return;
+    }
+    showResult(selRect);
+  });
+
+  // ---- Hiển thị kết quả ----
+  function showResult(rect) {
+    // Quy ngược về tọa độ ảnh gốc
+    const natX = Math.round(rect.x * scaleX);
+    const natY = Math.round(rect.y * scaleY);
+    const natW = Math.round(rect.w * scaleX);
+    const natH = Math.round(rect.h * scaleY);
+
+    // Tỉ lệ tương đối (0–1, 3 chữ số thập phân)
+    const rx = (natX / naturalW).toFixed(3);
+    const ry = (natY / naturalH).toFixed(3);
+    const rw = (natW / naturalW).toFixed(3);
+    const rh = (natH / naturalH).toFixed(3);
+
+    document.getElementById("val-x").textContent = natX;
+    document.getElementById("val-y").textContent = natY;
+    document.getElementById("val-w").textContent = natW;
+    document.getElementById("val-h").textContent = natH;
+
+    document.getElementById("code-out").textContent =
+`// Tọa độ tuyệt đối (px gốc: ${naturalW}×${naturalH})
+// region: { x: ${natX}, y: ${natY}, w: ${natW}, h: ${natH} }
+
+// Tọa độ tương đối (dán vào watermark.js):
+region: { x: ${rx}, y: ${ry}, w: ${rw}, h: ${rh} },`;
+
+    result.style.display = "block";
+  }
+
+  function clearSelection() {
+    octx.clearRect(0, 0, overlay.width, overlay.height);
+    result.style.display = "none";
+    selRect = null;
+  }
+
+  function copyCode() {
+    const text = document.getElementById("code-out").textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById("btnCopy");
+      btn.textContent = "✓ Đã copy";
+      btn.classList.add("copied");
+      setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
