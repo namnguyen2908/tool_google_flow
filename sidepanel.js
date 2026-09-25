@@ -19,6 +19,7 @@ const els = {
   txtFile: $("txtFile"),
   start: $("start"),
   stop: $("stop"),
+  resetQueue: $("resetQueue"),
   queue: $("queue"),
   progress: $("progress"),
   pfill: $("pfill"),
@@ -38,9 +39,46 @@ const els = {
 };
 
 let running = false;
-let items = []; // [{prompt, status}]
+let items = []; // [{prompt, status, error}]
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function cancellableSleep(ms) {
+  return new Promise((resolve) => {
+    const end = Date.now() + ms;
+    const interval = setInterval(() => {
+      if (!running || Date.now() >= end) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, 100);
+  });
+}
+
+function updateActionButtons() {
+  if (running) {
+    els.start.disabled = true;
+    els.start.innerHTML = "<span>Đang chạy…</span>";
+    els.stop.disabled = false;
+    if (els.resetQueue) els.resetQueue.style.display = "none";
+  } else {
+    els.stop.disabled = true;
+    els.start.disabled = false;
+
+    const list = parsePrompts();
+    const isSameList = items.length === list.length && items.every((it, idx) => it.prompt === list[idx]);
+    const doneCount = items.filter((it) => it.status === "done").length;
+    const hasRemaining = items.some((it) => it.status !== "done");
+
+    if (isSameList && doneCount > 0 && hasRemaining) {
+      els.start.innerHTML = "<span>Tiếp tục</span>";
+      if (els.resetQueue) els.resetQueue.style.display = "inline-flex";
+    } else {
+      els.start.innerHTML = "<span>Bắt đầu</span>";
+      if (els.resetQueue) els.resetQueue.style.display = "none";
+    }
+  }
+}
 
 // ---------- Điều khiển Tab ----------
 function setTab(name) {
@@ -471,15 +509,36 @@ async function run() {
     setConn(false, "Chưa có prompt nào");
     return;
   }
-  items = list.map((p) => ({ prompt: p, status: "pending" }));
+
+  // Kiểm tra xem có tiếp tục hàng đợi cũ hay tạo mới:
+  const isSameList = items.length === list.length && items.every((it, idx) => it.prompt === list[idx]);
+  const hasRemaining = items.some((it) => it.status !== "done");
+
+  if (!isSameList || items.length === 0 || !hasRemaining) {
+    // Tạo hàng đợi mới từ đầu
+    items = list.map((p) => ({ prompt: p, status: "pending" }));
+  } else {
+    // Tiếp tục hàng đợi: chỉ khôi phục các mục chưa xong (error, timeout) thành pending để thử lại
+    items.forEach((it) => {
+      if (it.status !== "done") {
+        it.status = "pending";
+        delete it.error;
+      }
+    });
+  }
+
   renderQueue();
 
   running = true;
-  els.start.disabled = true;
-  els.stop.disabled = false;
+  updateActionButtons();
 
   for (let i = 0; i < items.length; i++) {
     if (!running) break;
+
+    // Bỏ qua các prompt đã hoàn thành (done) trước đó khi bấm Tiếp tục
+    if (items[i].status === "done") {
+      continue;
+    }
 
     items[i].status = "generating";
     renderQueue();
@@ -551,23 +610,24 @@ async function run() {
     }
     renderQueue();
 
-    // nghỉ ngẫu nhiên trước prompt kế (trừ prompt cuối)
-    if (i < items.length - 1 && running) {
-      await sleep(randDelay());
+    // nghỉ ngẫu nhiên trước prompt kế (chỉ nghỉ nếu còn prompt chưa xong phía sau)
+    const hasMorePending = items.slice(i + 1).some((it) => it.status !== "done");
+    if (hasMorePending && running) {
+      await cancellableSleep(randDelay());
     }
   }
 
-  // xong hàng đợi -> tách debugger để thanh vàng biến mất
+  // xong hàng đợi hoặc dừng -> tách debugger để thanh vàng biến mất
   await sendToBg({ type: "DEBUG_DETACH" });
 
   running = false;
-  els.start.disabled = false;
-  els.stop.disabled = true;
+  updateActionButtons();
 }
 
 async function stop() {
   running = false;
   els.stop.disabled = true;
+  updateActionButtons();
   const tab = await getFlowTab();
   if (tab) await sendToTab(tab.id, { type: "STOP" });
   await sendToBg({ type: "DEBUG_DETACH" });
@@ -580,6 +640,11 @@ els.tabSettings.addEventListener("click", () => setTab("settings"));
 els.prompts.addEventListener("input", () => {
   refreshCount();
   saveSettings();
+  if (!running) {
+    items = [];
+    renderQueue();
+    updateActionButtons();
+  }
 });
 
 [
@@ -607,9 +672,25 @@ els.txtFile.addEventListener("change", (e) => {
     els.prompts.value = reader.result;
     refreshCount();
     saveSettings();
+    if (!running) {
+      items = [];
+      renderQueue();
+      updateActionButtons();
+    }
   };
   reader.readAsText(f);
 });
+
+if (els.resetQueue) {
+  els.resetQueue.addEventListener("click", () => {
+    if (running) return;
+    items = [];
+    renderQueue();
+    updateActionButtons();
+    setConn(true, "Đã làm mới hàng đợi, sẵn sàng bắt đầu từ đầu.");
+  });
+}
+
 els.start.addEventListener("click", run);
 els.stop.addEventListener("click", stop);
 

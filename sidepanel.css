@@ -148,6 +148,18 @@ textarea:focus, input:focus {
 }
 .btn--primary:hover:not(:disabled) { background-position: 100% 0; }
 .btn--danger { border-color: rgba(248, 113, 113, 0.4); color: var(--red); }
+#resetQueue {
+  padding: 10px 13px;
+  font-size: 15px;
+  line-height: 1;
+  align-items: center;
+  justify-content: center;
+  border-color: var(--line);
+}
+#resetQueue:hover:not(:disabled) {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+}
 .actions { display: flex; gap: 10px; margin-bottom: 12px; }
 
 /* ---- Tip ---- */
