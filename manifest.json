@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "h2dev_flow — Bulk Image cho Google Flow",
+  "name": "tool_flow — Bulk Image cho Google Flow",
   "version": "1.0.0",
   "description": "Nạp hàng loạt prompt và tự động sinh ảnh trên Google Flow, tự tải về. Bản khung mã nguồn mở cho cộng đồng.",
   "permissions": ["sidePanel", "downloads", "storage", "tabs", "scripting", "debugger"],

@@ -1,8 +1,8 @@
-# h2dev_flow — Bulk Image cho Google Flow
+# tool_flow — Bulk Image cho Google Flow
 
 > **CÁCH HOẠT ĐỘNG (bản chính thức):** Tool dùng **chrome.debugger** để gõ chữ thật vào ô prompt của Flow (ô Slate.js chỉ nhận input thật). Vì vậy:
 > 1. **Phải ĐÓNG DevTools (F12)** trên tab Flow khi chạy — DevTools chiếm mất kênh debugger.
-> 2. Khi chạy, Chrome hiện thanh vàng **"h2dev_flow đang gỡ lỗi trình duyệt này"** — **để yên, đừng bấm Hủy**.
+> 2. Khi chạy, Chrome hiện thanh vàng **"tool_flow đang gỡ lỗi trình duyệt này"** — **để yên, đừng bấm Hủy**.
 >
 > Quy trình: dán prompt (mỗi dòng 1 cái) → Bắt đầu → tool tự gõ + Enter + chờ ảnh xong → tự tải về `Downloads/[thư mục]/` → prompt tiếp theo.
 
@@ -20,7 +20,7 @@ Extension Chrome (mã nguồn mở, miễn phí) giúp nạp hàng loạt prompt
 1. Tải cả thư mục này về máy, giải nén.
 2. Mở Chrome, vào `chrome://extensions`.
 3. Bật **Chế độ nhà phát triển** (góc trên bên phải).
-4. Bấm **Tải tiện ích đã giải nén** → chọn thư mục `h2dev_flow`.
+4. Bấm **Tải tiện ích đã giải nén** → chọn thư mục `tool_flow`.
 5. Icon ⚡ xuất hiện trên thanh công cụ. Xong.
 
 > Mỗi khi sửa code, quay lại `chrome://extensions` bấm nút **tải lại** (↻) trên thẻ extension.
@@ -81,7 +81,7 @@ Các tham số khác trong khối `CONFIG` ở đầu `content.js` bạn cũng c
 
 - Đổi tên + mô tả trong `manifest.json` (`name`, `description`).
 - Thay 3 file icon trong thư mục `icons/`.
-- Đổi tiêu đề "h2dev_flow" trong `sidepanel.html` và màu trong `sidepanel.css` (sửa biến `--accent`).
+- Đổi tiêu đề "tool_flow" trong `sidepanel.html` và màu trong `sidepanel.css` (sửa biến `--accent`).
 
 ---
 
@@ -96,7 +96,7 @@ Các tham số khác trong khối `CONFIG` ở đầu `content.js` bạn cũng c
 ## Cấu trúc file
 
 ```
-h2dev_flow/
+tool_flow/
 ├── manifest.json      # khai báo extension
 ├── background.js      # mở side panel khi bấm icon
 ├── content.js         # CON BOT: điều khiển trang Flow  ← sửa ở đây khi hỏng

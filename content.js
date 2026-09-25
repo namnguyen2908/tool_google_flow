@@ -137,7 +137,7 @@ async function wakePromptBox() {
       await sleep(250);
       ed = findPromptInput();
       if (ed) {
-        console.log("[h2dev_flow] ✓ Đánh thức được ô prompt bằng cú click.");
+        console.log("[tool_flow] ✓ Đánh thức được ô prompt bằng cú click.");
         return ed;
       }
     }
@@ -352,7 +352,7 @@ async function addReferenceImage() {
     return button && isVisible(button) && !isBtnDisabled(button) ? button : null;
   });
   if (!addMenu) return { ok: false, error: "Không tìm thấy nút + đang hiển thị." };
-  console.log("[h2dev_flow] Bước ảnh tham chiếu 1/3: click nút +");
+  console.log("[tool_flow] Bước ảnh tham chiếu 1/3: click nút +");
   clickOnce(addMenu);
 
   const popup = await waitForElement(() =>
@@ -366,7 +366,7 @@ async function addReferenceImage() {
     )
   );
   if (!uploadTab) return { ok: false, error: "Không tìm thấy mục Tệp tải lên." };
-  console.log("[h2dev_flow] Bước ảnh tham chiếu 2/3: click Tệp tải lên");
+  console.log("[tool_flow] Bước ảnh tham chiếu 2/3: click Tệp tải lên");
   clickOnce(uploadTab);
 
   const addButton = await waitForElement(() => {
@@ -374,7 +374,7 @@ async function addReferenceImage() {
     return button && isVisible(button) && !isBtnDisabled(button) ? button : null;
   });
   if (!addButton) return { ok: false, error: "Không tìm thấy nút Thêm vào câu lệnh." };
-  console.log("[h2dev_flow] Bước ảnh tham chiếu 3/3: click Thêm vào câu lệnh");
+  console.log("[tool_flow] Bước ảnh tham chiếu 3/3: click Thêm vào câu lệnh");
   clickOnce(addButton);
   await sleep(500);
   return { ok: true };
@@ -385,7 +385,7 @@ async function addReferenceImage() {
 async function submitPromptReliably(input, disabledBefore) {
   const arrow = findGenerateButton(input);
   console.log(
-    "[h2dev_flow] Nút gửi:",
+    "[tool_flow] Nút gửi:",
     arrow
       ? arrow.getAttribute("aria-label") ||
           arrow.textContent.trim().slice(0, 15) ||
@@ -401,7 +401,7 @@ async function submitPromptReliably(input, disabledBefore) {
     pressEnter(input);
     await sleep(700);
     if (inputText(input).trim().length < 3) {
-      console.log("[h2dev_flow] ✓ Gửi bằng ENTER (lần", i + 1, ")");
+      console.log("[tool_flow] ✓ Gửi bằng ENTER (lần", i + 1, ")");
       return true;
     }
 
@@ -410,7 +410,7 @@ async function submitPromptReliably(input, disabledBefore) {
       clickFully(arrow);
       await sleep(700);
       if (inputText(input).trim().length < 3) {
-        console.log("[h2dev_flow] ✓ Gửi bằng CLICK nút (lần", i + 1, ")");
+        console.log("[tool_flow] ✓ Gửi bằng CLICK nút (lần", i + 1, ")");
         return true;
       }
     }
@@ -435,7 +435,7 @@ function getCompletedImages() {
 // ---------- 5. Canh tới khi có ảnh MỚI xuất hiện ----------
 async function waitForNewImage(baselineSet) {
   const start = Date.now();
-  console.log("[h2dev_flow] Đang chờ ảnh mới... (số ảnh nền ban đầu:", baselineSet.size, ")");
+  console.log("[tool_flow] Đang chờ ảnh mới... (số ảnh nền ban đầu:", baselineSet.size, ")");
   let lastLog = 0;
   while (Date.now() - start < CONFIG.maxWaitMs) {
     if (STOP) return { stopped: true };
@@ -444,13 +444,13 @@ async function waitForNewImage(baselineSet) {
     if (fresh.length) {
       await sleep(CONFIG.settleMs); // chờ ảnh load đủ
       const newest = fresh[0];
-      console.log("[h2dev_flow] ✓✓ Thấy ảnh mới! Đang tải:", srcKey(newest).slice(0, 70));
+      console.log("[tool_flow] ✓✓ Thấy ảnh mới! Đang tải:", srcKey(newest).slice(0, 70));
       return { img: newest, src: srcKey(newest) };
     }
     const elapsed = Math.round((Date.now() - start) / 1000);
     if (elapsed - lastLog >= 10) {
       lastLog = elapsed;
-      console.log("[h2dev_flow] ...vẫn đang chờ ảnh —", elapsed, "giây trôi qua. Số ảnh ≥256px hiện có:", all.length);
+      console.log("[tool_flow] ...vẫn đang chờ ảnh —", elapsed, "giây trôi qua. Số ảnh ≥256px hiện có:", all.length);
     }
     await sleep(CONFIG.pollMs);
   }
@@ -463,7 +463,7 @@ async function runOne(prompt) {
   let input = await wakePromptBox();
   if (!input) {
     console.warn(
-      "[h2dev_flow] ❌ KHÔNG tìm thấy ô prompt. Đếm phần tử trong DOM →",
+      "[tool_flow] ❌ KHÔNG tìm thấy ô prompt. Đếm phần tử trong DOM →",
       "slate:", document.querySelectorAll('[data-slate-editor="true"]').length,
       "| textbox:", document.querySelectorAll('[role="textbox"]').length,
       "| contenteditable:", document.querySelectorAll('[contenteditable="true"]').length,
@@ -471,7 +471,7 @@ async function runOne(prompt) {
     );
     return { ok: false, error: "Không tìm thấy ô prompt." };
   }
-  console.log("[h2dev_flow] ✓ Ô prompt:", input.tagName, input.getAttribute("role"));
+  console.log("[tool_flow] ✓ Ô prompt:", input.tagName, input.getAttribute("role"));
 
   const baseline = new Set(getCompletedImages().map(srcKey));
   const disabledBefore = new Set(
@@ -490,9 +490,9 @@ async function runOne(prompt) {
   await sleep(700);
 
   const got = inputText(input).trim();
-  console.log("[h2dev_flow] Sau khi gõ, nội dung ô =", JSON.stringify(got.slice(0, 50)), "(", got.length, "ký tự )");
+  console.log("[tool_flow] Sau khi gõ, nội dung ô =", JSON.stringify(got.slice(0, 50)), "(", got.length, "ký tự )");
   if (got.length < 3) {
-    console.warn("[h2dev_flow] ❌ Gõ chữ KHÔNG vào được ô (Slate không nhận).");
+    console.warn("[tool_flow] ❌ Gõ chữ KHÔNG vào được ô (Slate không nhận).");
     return { ok: false, error: "Gõ chữ không vào được ô prompt (Slate)." };
   }
 
@@ -500,7 +500,7 @@ async function runOne(prompt) {
   const sent = await submitPromptReliably(input, disabledBefore);
   if (STOP) return { ok: false, stopped: true };
   if (!sent) {
-    console.warn("[h2dev_flow] ❌ Gõ được nhưng KHÔNG gửi được.");
+    console.warn("[tool_flow] ❌ Gõ được nhưng KHÔNG gửi được.");
     return {
       ok: false,
       error: "Đã gõ prompt nhưng KHÔNG gửi được (nút gửi không phản hồi).",
@@ -530,7 +530,7 @@ async function toDataUrl(url) {
       if (d) return d;
     }
   } catch (e) {
-    console.log("[h2dev_flow] toDataUrl fetch không được, thử DOM canvas fallback:", e.message || e);
+    console.log("[tool_flow] toDataUrl fetch không được, thử DOM canvas fallback:", e.message || e);
   }
 
   // Cách 2: Tìm thẻ <img> trong DOM đang hiển thị src này và vẽ lên canvas
@@ -549,7 +549,7 @@ async function toDataUrl(url) {
       return cvs.toDataURL("image/png");
     }
   } catch (e) {
-    console.log("[h2dev_flow] toDataUrl vẽ canvas từ DOM thất bại:", e.message || e);
+    console.log("[tool_flow] toDataUrl vẽ canvas từ DOM thất bại:", e.message || e);
   }
 
   throw new Error("Không thể trích xuất dataURL của ảnh");
@@ -557,13 +557,13 @@ async function toDataUrl(url) {
 
 // ---------- 8. Nhận lệnh từ side panel ----------
 // Hỗ trợ cập nhật listener khi tiêm lại mà không gây xung đột / treo kết nối
-if (window.__H2DEV_FLOW_DISPATCHER__) {
+if (window.__TOOL_FLOW_DISPATCHER__) {
   try {
-    chrome.runtime.onMessage.removeListener(window.__H2DEV_FLOW_DISPATCHER__);
+    chrome.runtime.onMessage.removeListener(window.__TOOL_FLOW_DISPATCHER__);
   } catch (_) {}
 }
 
-window.__H2DEV_FLOW_DISPATCHER__ = (msg, sender, sendResponse) => {
+window.__TOOL_FLOW_DISPATCHER__ = (msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
 
   if (msg.type === "PING") {
@@ -598,7 +598,7 @@ window.__H2DEV_FLOW_DISPATCHER__ = (msg, sender, sendResponse) => {
           return;
         }
         const r = input.getBoundingClientRect();
-        window.__h2dev_flow_baseline = new Set(getCompletedImages().map(srcKey));
+        window.__tool_flow_baseline = new Set(getCompletedImages().map(srcKey));
         sendResponse({
           ok: true,
           x: Math.round(r.left + r.width / 2),
@@ -613,7 +613,7 @@ window.__H2DEV_FLOW_DISPATCHER__ = (msg, sender, sendResponse) => {
 
   // Chờ ảnh mới (so với baseline đã chụp ở GET_BOX) rồi trả src
   if (msg.type === "WAIT_IMAGE") {
-    const baseline = window.__h2dev_flow_baseline || new Set();
+    const baseline = window.__tool_flow_baseline || new Set();
     waitForNewImage(baseline).then((res) => {
       if (res.stopped) sendResponse({ ok: false, stopped: true });
       else if (res.timeout) sendResponse({ ok: false, timeout: true });
@@ -630,5 +630,5 @@ window.__H2DEV_FLOW_DISPATCHER__ = (msg, sender, sendResponse) => {
   }
 };
 
-chrome.runtime.onMessage.addListener(window.__H2DEV_FLOW_DISPATCHER__);
-console.log("[h2dev_flow] content script đã sẵn sàng trên Google Flow.");
+chrome.runtime.onMessage.addListener(window.__TOOL_FLOW_DISPATCHER__);
+console.log("[tool_flow] content script đã sẵn sàng trên Google Flow.");

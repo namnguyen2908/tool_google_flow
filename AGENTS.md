@@ -1,4 +1,4 @@
-# h2dev_flow
+# tool_flow
 
 ## Project Shape
 
@@ -11,7 +11,7 @@
 
 ## Working Rules
 
-- Use plain browser JavaScript with `const`/`let`, semicolons, two-space indentation, and small local helpers. Match the existing Vietnamese UI text and `[h2dev_flow]` console-log prefix.
+- Use plain browser JavaScript with `const`/`let`, semicolons, two-space indentation, and small local helpers. Match the existing Vietnamese UI text and `[tool_flow]` console-log prefix.
 - Keep Flow-specific selectors and timing values in the `CONFIG` object at the top of `content.js`. Prefer defensive fallback detection because Google can change the Flow DOM.
 - Preserve the message boundaries: side panel -> content script for page inspection/waiting, side panel -> service worker for downloads, and side panel -> background debugger for real input.
 - Validate message payloads and tab ownership when adding new message types. The debugger implementation supports one attached Flow tab and currently selects the first matching tab.
@@ -22,7 +22,7 @@
 
 - Read [README.md](README.md) for installation, usage, known limitations, and selector repair steps before changing Flow automation.
 - After source changes, reload the unpacked extension from `chrome://extensions`, open one Google Flow tab, and run a small batch.
-- Close DevTools on the Flow tab before testing debugger input, leave Chrome's debugger warning bar active, and inspect the extension/service-worker and Flow console logs for `[h2dev_flow]` messages.
+- Close DevTools on the Flow tab before testing debugger input, leave Chrome's debugger warning bar active, and inspect the extension/service-worker and Flow console logs for `[tool_flow]` messages.
 - Check both a successful download and Stop behavior. For image-detection changes, test existing images, a newly rendered image, timeout behavior, and `blob:` results when available.
 
 ## Documentation Map

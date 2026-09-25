@@ -76,7 +76,11 @@ function saveSettings() {
 async function loadSettings() {
   const s = await chrome.storage.local.get();
   if (s.prompts != null) els.prompts.value = s.prompts;
-  if (s.folder) els.folder.value = s.folder;
+  if (s.folder && !s.folder.startsWith("h2")) {
+    els.folder.value = s.folder;
+  } else {
+    els.folder.value = "google_flow";
+  }
   if (s.serial != null) els.serial.checked = s.serial;
   if (s.numFormat != null && els.numFormat) els.numFormat.value = s.numFormat;
   if (s.useReference != null) els.useReference.checked = s.useReference;
@@ -113,7 +117,7 @@ function sendToTab(tabId, msg, quiet = false) {
       if (chrome.runtime.lastError) {
         const error = chrome.runtime.lastError.message;
         if (!quiet) {
-          console.warn("[h2dev_flow] Gửi lệnh tới Flow thất bại:", msg.type, error);
+          console.warn("[tool_flow] Gửi lệnh tới Flow thất bại:", msg.type, error);
         }
         resolve({ ok: false, error });
       }
@@ -128,7 +132,7 @@ function sendToBg(msg) {
     chrome.runtime.sendMessage(msg, (resp) => {
       if (chrome.runtime.lastError) {
         const error = chrome.runtime.lastError.message;
-        console.warn("[h2dev_flow] Gửi lệnh tới background thất bại:", msg.type, error);
+        console.warn("[tool_flow] Gửi lệnh tới background thất bại:", msg.type, error);
         resolve({ ok: false, error });
       }
       else resolve(resp);
@@ -154,7 +158,7 @@ async function checkConnection() {
       await new Promise((r) => setTimeout(r, 400));
       resp = await sendToTab(tab.id, { type: "PING" }, false);
     } catch (e) {
-      console.warn("[h2dev_flow] Không tiêm được content script:", e);
+      console.warn("[tool_flow] Không tiêm được content script:", e);
     }
   }
 
@@ -216,7 +220,7 @@ function markItemError(index, message, status = "error") {
   const error = String(message || "Không xác định được lỗi");
   items[index].status = status;
   items[index].error = error;
-  console.error(`[h2dev_flow] Prompt ${index + 1} lỗi:`, error);
+  console.error(`[tool_flow] Prompt ${index + 1} lỗi:`, error);
 }
 
 // ---------- Tên file & Xem trước ----------
@@ -229,7 +233,7 @@ function safeName(s) {
 }
 
 function buildFilename(serial, prompt) {
-  const folder = safeName(els.folder.value || "h2dev_flow") || "h2dev_flow";
+  const folder = safeName(els.folder.value || "google_flow") || "google_flow";
   const rawRule = (els.filePrefix?.value || "").trim();
   const snippet = safeName(prompt) || "image";
 
@@ -306,12 +310,12 @@ async function ensureDataUrl(src, tabId) {
           fr.readAsDataURL(blob);
         });
         if (dataUrl) {
-          console.log("[h2dev_flow] ✓ Chuyển đổi https sang dataURL thành công (Extension fetch)");
+          console.log("[tool_flow] ✓ Chuyển đổi https sang dataURL thành công (Extension fetch)");
           return dataUrl;
         }
       }
     } catch (e) {
-      console.log("[h2dev_flow] Extension fetch thất bại, thử qua tab Flow:", e.message || e);
+      console.log("[tool_flow] Extension fetch thất bại, thử qua tab Flow:", e.message || e);
     }
   }
 
@@ -320,11 +324,11 @@ async function ensureDataUrl(src, tabId) {
     try {
       const r = await sendToTab(tabId, { type: "TODATAURL", src });
       if (r && r.ok && r.dataUrl) {
-        console.log("[h2dev_flow] ✓ Chuyển đổi sang dataURL thành công qua tab Flow");
+        console.log("[tool_flow] ✓ Chuyển đổi sang dataURL thành công qua tab Flow");
         return r.dataUrl;
       }
     } catch (e) {
-      console.log("[h2dev_flow] Lệnh TODATAURL tới tab Flow thất bại:", e.message || e);
+      console.log("[tool_flow] Lệnh TODATAURL tới tab Flow thất bại:", e.message || e);
     }
   }
 
@@ -349,11 +353,11 @@ async function ensureDataUrl(src, tabId) {
       img.src = src;
     });
     if (dataUrl) {
-      console.log("[h2dev_flow] ✓ Chuyển đổi sang dataURL thành công qua anonymous Image canvas");
+      console.log("[tool_flow] ✓ Chuyển đổi sang dataURL thành công qua anonymous Image canvas");
       return dataUrl;
     }
   } catch (e) {
-    console.warn("[h2dev_flow] Fallback anonymous Image thất bại:", e.message || e);
+    console.warn("[tool_flow] Fallback anonymous Image thất bại:", e.message || e);
   }
 
   return src;
@@ -362,7 +366,7 @@ async function ensureDataUrl(src, tabId) {
 // ---------- Tải ảnh ----------
 async function downloadImage(src, serial, prompt, tabId) {
   let url = src;
-  console.log("[h2dev_flow] Đang chuẩn bị tải ảnh...", src.slice(0, 80));
+  console.log("[tool_flow] Đang chuẩn bị tải ảnh...", src.slice(0, 80));
 
   // Bước 1: Đổi src sang dataURL sạch
   url = await ensureDataUrl(url, tabId);
@@ -372,36 +376,82 @@ async function downloadImage(src, serial, prompt, tabId) {
   if (shouldRemoveWatermark) {
     if (typeof removeWatermark === "function") {
       if (/^data:/i.test(url)) {
-        console.log("[h2dev_flow] Đang tiến hành xóa watermark...");
+        console.log("[tool_flow] Đang tiến hành xóa watermark...");
         try {
           const cleanUrl = await removeWatermark(url);
           if (cleanUrl && cleanUrl !== url) {
             url = cleanUrl;
-            console.log("[h2dev_flow] ✓ Xóa watermark thành công!");
+            console.log("[tool_flow] ✓ Xóa watermark thành công!");
           } else {
-            console.warn("[h2dev_flow] removeWatermark không thay đổi ảnh.");
+            console.warn("[tool_flow] removeWatermark không thay đổi ảnh.");
           }
         } catch (err) {
-          console.warn("[h2dev_flow] Bỏ qua xóa watermark do lỗi:", err);
+          console.warn("[tool_flow] Bỏ qua xóa watermark do lỗi:", err);
         }
       } else {
-        console.warn("[h2dev_flow] Không convert được ảnh sang dataURL, tải ảnh gốc.");
+        console.warn("[tool_flow] Không convert được ảnh sang dataURL, tải ảnh gốc.");
       }
     } else {
-      console.error("[h2dev_flow] Hàm removeWatermark không khả dụng.");
+      console.error("[tool_flow] Hàm removeWatermark không khả dụng.");
     }
   } else {
-    console.log("[h2dev_flow] Tùy chọn xóa watermark đang TẮT trong Cài đặt, giữ nguyên logo.");
+    console.log("[tool_flow] Tùy chọn xóa watermark đang TẮT trong Cài đặt, giữ nguyên logo.");
   }
 
-  // Bước 3: Lưu file
-  await chrome.downloads.download({
-    url,
-    filename: buildFilename(serial, prompt),
+  // Bước 3: Lưu file (hỗ trợ tạo folder con và đặt tên chuẩn qua Blob URL & onDeterminingFilename)
+  const targetFilename = buildFilename(serial, prompt);
+  console.log("[tool_flow] Chuẩn bị tải file:", targetFilename);
+
+  // Đổi dataURL sang blobURL để Chrome nhận diện tên file và tạo thư mục con chuẩn 100%
+  const downloadUrl = dataUrlToBlobUrl(url);
+
+  // Đăng ký tên file với background service worker để onDeterminingFilename bảo vệ
+  try {
+    await sendToBg({
+      type: "REGISTER_DOWNLOAD",
+      url: downloadUrl,
+      filename: targetFilename,
+    });
+  } catch (err) {
+    console.warn("[tool_flow] Đăng ký download với background cảnh báo:", err);
+  }
+
+  const downloadId = await chrome.downloads.download({
+    url: downloadUrl,
+    filename: targetFilename,
     conflictAction: "uniquify",
     saveAs: false,
   });
-  console.log("[h2dev_flow] ✓ Đã gửi lệnh download về máy.");
+
+  console.log(`[tool_flow] ✓ Đã bắt đầu tải (ID: ${downloadId}), file: ${targetFilename}`);
+
+  // Dọn dẹp blobUrl sau 60 giây để tránh chiếm bộ nhớ
+  if (downloadUrl !== url && /^blob:/i.test(downloadUrl)) {
+    setTimeout(() => {
+      try { URL.revokeObjectURL(downloadUrl); } catch (_) {}
+    }, 60000);
+  }
+}
+
+// Chuyển đổi dataURL (base64) sang Blob URL để Chrome download manager nhận diện đúng tên file và tạo thư mục con
+function dataUrlToBlobUrl(url) {
+  if (!/^data:/i.test(url)) return url;
+  try {
+    const parts = url.split(",");
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : "image/png";
+    const bstr = atob(parts[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    const blob = new Blob([u8arr], { type: mime });
+    return URL.createObjectURL(blob);
+  } catch (e) {
+    console.warn("[tool_flow] dataUrlToBlobUrl thất bại:", e);
+    return url;
+  }
 }
 
 // ---------- Delay ngẫu nhiên ----------

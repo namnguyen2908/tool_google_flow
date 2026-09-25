@@ -1,5 +1,5 @@
 // ============================================================
-//  h2dev_flow — background service worker
+//  tool_flow — background service worker
 //  Dùng chrome.debugger để GÕ CHỮ THẬT vào ô prompt (Slate),
 //  Slate chỉ nhận sự kiện thật nên phải đi đường này.
 // ============================================================
@@ -7,7 +7,7 @@
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel
     .setPanelBehavior({ openPanelOnActionClick: true })
-    .catch((e) => console.warn("[h2dev_flow] setPanelBehavior:", e));
+    .catch((e) => console.warn("[tool_flow] setPanelBehavior:", e));
 });
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -17,7 +17,7 @@ let attachedTab = null;
 // Nếu người dùng bấm Hủy thanh vàng -> debugger tự tách -> reset trạng thái
 chrome.debugger.onDetach.addListener((source) => {
   if (source.tabId === attachedTab) {
-    console.warn("[h2dev_flow] debugger bị tách khỏi tab", source.tabId);
+    console.warn("[tool_flow] debugger bị tách khỏi tab", source.tabId);
     attachedTab = null;
   }
 });
@@ -94,8 +94,21 @@ async function debugTypeAndSubmit(tabId, x, y, prompt) {
   });
 }
 
+// Quản lý tên file download do extension yêu cầu (đảm bảo tạo folder con và không bị đổi tên thành 'tải xuống')
+const pendingDownloads = new Map(); // url -> filename
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
+
+  if (msg.type === "REGISTER_DOWNLOAD") {
+    if (msg.url && msg.filename) {
+      pendingDownloads.set(msg.url, msg.filename);
+      // Tự dọn sau 60 giây nếu không dùng
+      setTimeout(() => pendingDownloads.delete(msg.url), 60000);
+    }
+    sendResponse({ ok: true });
+    return;
+  }
 
   if (msg.type === "DEBUG_SUBMIT") {
     debugTypeAndSubmit(msg.tabId, msg.x, msg.y, msg.prompt)
@@ -109,3 +122,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 });
+
+// Bắt sự kiện xác định tên file tải về để ép Chrome tạo folder con và đặt tên chuẩn xác
+chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
+  let targetName = null;
+  if (pendingDownloads.has(item.url)) {
+    targetName = pendingDownloads.get(item.url);
+    pendingDownloads.delete(item.url);
+  }
+  if (targetName) {
+    console.log("[tool_flow] onDeterminingFilename áp dụng tên:", targetName);
+    suggest({
+      filename: targetName,
+      conflictAction: "uniquify",
+    });
+  } else {
+    suggest();
+  }
+});
+
