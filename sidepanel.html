@@ -96,10 +96,41 @@
         <div class="setting-item">
           <div class="setting-info">
             <label class="lbl" for="removeWatermark">Xóa logo / watermark Gemini</label>
-            <p class="hint">Tự động xóa logo góc bằng Seamless Texture Cloning, không để lại vết mờ.</p>
+            <p class="hint">Tự động nhận diện và xóa sạch logo bằng Dual-Engine (Local + AI Cloudflare).</p>
           </div>
           <label class="switch">
             <input id="removeWatermark" type="checkbox" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Nhóm: AI Inpainting (Cloudflare Workers AI) -->
+      <div class="settings-group">
+        <div class="group-title">
+          <span>🤖</span> AI Inpainting Dự phòng (Cloudflare)
+        </div>
+        <p class="hint" style="margin-bottom: 12px;">
+          Tự động gọi Cloudflare AI khi gặp ca khó (logo dính chữ, hoa văn phức tạp). Lưu an toàn tại máy cá nhân.
+        </p>
+
+        <div class="setting-item column">
+          <label class="lbl" for="cfAccountId">Cloudflare Account ID</label>
+          <input id="cfAccountId" type="text" placeholder="Ví dụ: b81d765f0e9324bc..." />
+        </div>
+
+        <div class="setting-item column">
+          <label class="lbl" for="cfApiToken">Cloudflare API Token</label>
+          <input id="cfApiToken" type="password" placeholder="Dán API Token (quyền Workers AI)" />
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label class="lbl" for="cfUseAiFallback">Bật AI Inpainting dự phòng</label>
+            <p class="hint">Chỉ gọi AI khi ảnh có độ phức tạp cao hoặc vùng dính chữ.</p>
+          </div>
+          <label class="switch">
+            <input id="cfUseAiFallback" type="checkbox" checked />
             <span class="slider"></span>
           </label>
         </div>

@@ -29,6 +29,9 @@ const els = {
   // Cài đặt
   useReference: $("useReference"),
   removeWatermark: $("removeWatermark"),
+  cfAccountId: $("cfAccountId"),
+  cfApiToken: $("cfApiToken"),
+  cfUseAiFallback: $("cfUseAiFallback"),
   delayMin: $("delayMin"),
   delayMax: $("delayMax"),
   folder: $("folder"),
@@ -104,6 +107,9 @@ function saveSettings() {
     numFormat: els.numFormat?.value || "1",
     useReference: els.useReference.checked,
     removeWatermark: els.removeWatermark ? els.removeWatermark.checked : true,
+    cfAccountId: els.cfAccountId?.value || "",
+    cfApiToken: els.cfApiToken?.value || "",
+    cfUseAiFallback: els.cfUseAiFallback ? els.cfUseAiFallback.checked : true,
     delayMin: els.delayMin.value,
     delayMax: els.delayMax.value,
     filePrefix: els.filePrefix?.value != null ? els.filePrefix.value : "image",
@@ -123,6 +129,9 @@ async function loadSettings() {
   if (s.numFormat != null && els.numFormat) els.numFormat.value = s.numFormat;
   if (s.useReference != null) els.useReference.checked = s.useReference;
   if (s.removeWatermark != null && els.removeWatermark) els.removeWatermark.checked = s.removeWatermark;
+  if (s.cfAccountId != null && els.cfAccountId) els.cfAccountId.value = s.cfAccountId;
+  if (s.cfApiToken != null && els.cfApiToken) els.cfApiToken.value = s.cfApiToken;
+  if (s.cfUseAiFallback != null && els.cfUseAiFallback) els.cfUseAiFallback.checked = s.cfUseAiFallback;
   if (s.delayMin != null) els.delayMin.value = s.delayMin;
   if (s.delayMax != null) els.delayMax.value = s.delayMax;
   if (s.filePrefix != null && els.filePrefix) els.filePrefix.value = s.filePrefix;
@@ -416,7 +425,11 @@ async function downloadImage(src, serial, prompt, tabId) {
       if (/^data:/i.test(url)) {
         console.log("[tool_flow] Đang tiến hành xóa watermark...");
         try {
-          const cleanUrl = await removeWatermark(url);
+          const cleanUrl = await removeWatermark(url, {
+            cfAccountId: (els.cfAccountId?.value || "").trim(),
+            cfApiToken: (els.cfApiToken?.value || "").trim(),
+            cfUseAiFallback: els.cfUseAiFallback ? els.cfUseAiFallback.checked : false,
+          });
           if (cleanUrl && cleanUrl !== url) {
             url = cleanUrl;
             console.log("[tool_flow] ✓ Xóa watermark thành công!");
@@ -653,6 +666,9 @@ els.prompts.addEventListener("input", () => {
   els.numFormat,
   els.useReference,
   els.removeWatermark,
+  els.cfAccountId,
+  els.cfApiToken,
+  els.cfUseAiFallback,
   els.delayMin,
   els.delayMax,
   els.filePrefix,
