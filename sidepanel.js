@@ -8,8 +8,10 @@ const $ = (id) => document.getElementById(id);
 const els = {
   // Tabs
   tabRun: $("tabRun"),
+  tabWatermark: $("tabWatermark"),
   tabSettings: $("tabSettings"),
   paneRun: $("paneRun"),
+  paneWatermark: $("paneWatermark"),
   paneSettings: $("paneSettings"),
 
   // Chạy prompt
@@ -85,17 +87,22 @@ function updateActionButtons() {
 
 // ---------- Điều khiển Tab ----------
 function setTab(name) {
-  if (name === "settings") {
-    els.tabSettings.classList.add("tab-btn--active");
-    els.tabRun.classList.remove("tab-btn--active");
-    els.paneSettings.classList.add("tab-pane--active");
-    els.paneRun.classList.remove("tab-pane--active");
-  } else {
-    els.tabRun.classList.add("tab-btn--active");
-    els.tabSettings.classList.remove("tab-btn--active");
-    els.paneRun.classList.add("tab-pane--active");
-    els.paneSettings.classList.remove("tab-pane--active");
-  }
+  const tabs = [
+    { name: "run", btn: els.tabRun, pane: els.paneRun },
+    { name: "watermark", btn: els.tabWatermark, pane: els.paneWatermark },
+    { name: "settings", btn: els.tabSettings, pane: els.paneSettings },
+  ];
+  tabs.forEach((t) => {
+    if (t.btn && t.pane) {
+      if (t.name === name) {
+        t.btn.classList.add("tab-btn--active");
+        t.pane.classList.add("tab-pane--active");
+      } else {
+        t.btn.classList.remove("tab-btn--active");
+        t.pane.classList.remove("tab-pane--active");
+      }
+    }
+  });
 }
 
 // ---------- Lưu / khôi phục cài đặt ----------
@@ -648,6 +655,7 @@ async function stop() {
 
 // ---------- Sự kiện ----------
 els.tabRun.addEventListener("click", () => setTab("run"));
+els.tabWatermark.addEventListener("click", () => setTab("watermark"));
 els.tabSettings.addEventListener("click", () => setTab("settings"));
 
 els.prompts.addEventListener("input", () => {
@@ -709,6 +717,17 @@ if (els.resetQueue) {
 
 els.start.addEventListener("click", run);
 els.stop.addEventListener("click", stop);
+
+// Khởi tạo Component Tab Xóa Logo
+if (typeof WatermarkTab !== "undefined") {
+  WatermarkTab.init({
+    getOptions: () => ({
+      cfAccountId: (els.cfAccountId?.value || "").trim(),
+      cfApiToken: (els.cfApiToken?.value || "").trim(),
+      cfUseAiFallback: els.cfUseAiFallback ? els.cfUseAiFallback.checked : false,
+    }),
+  });
+}
 
 // ---------- Khởi động ----------
 loadSettings();

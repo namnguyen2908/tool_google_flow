@@ -425,4 +425,123 @@ select.select-box:focus {
   border-color: var(--accent);
 }
 
+/* ---- Tab Xóa Logo (Watermark Tab) ---- */
+.wm-dropzone {
+  border: 2px dashed rgba(124, 92, 255, 0.45);
+  border-radius: var(--radius);
+  background: rgba(22, 24, 39, 0.6);
+  padding: 22px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.wm-dropzone:hover, .wm-dropzone.dragover {
+  border-color: var(--accent-2);
+  background: rgba(76, 201, 240, 0.08);
+  box-shadow: 0 0 20px -4px rgba(76, 201, 240, 0.25);
+}
+.wm-drop-icon {
+  font-size: 28px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+.wm-drop-text {
+  font-size: 13px;
+  color: var(--text);
+}
+.wm-drop-text b {
+  color: var(--accent-2);
+}
+.wm-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.btn--sm {
+  padding: 5px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+.wm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.wm-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 24px 0;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+}
+.wm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  transition: border-color 0.2s;
+}
+.wm-item:hover {
+  border-color: rgba(124, 92, 255, 0.35);
+}
+.wm-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 7px;
+  object-fit: cover;
+  background: #000;
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.wm-details {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wm-filename {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wm-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.wm-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.wm-tag {
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-weight: 600;
+}
+.wm-tag--ready { background: rgba(139, 144, 181, 0.15); color: var(--muted); }
+.wm-tag--processing { background: rgba(76, 201, 240, 0.15); color: var(--accent-2); }
+.wm-tag--done { background: rgba(52, 211, 153, 0.15); color: var(--green); }
+.wm-tag--error { background: rgba(248, 113, 113, 0.15); color: var(--red); }
+
+
 

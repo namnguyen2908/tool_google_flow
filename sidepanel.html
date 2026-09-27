@@ -31,6 +31,10 @@
         <span class="tab-icon">🚀</span>
         <span>Chạy Prompt</span>
       </button>
+      <button id="tabWatermark" class="tab-btn" type="button">
+        <span class="tab-icon">✨</span>
+        <span>Xóa Logo</span>
+      </button>
       <button id="tabSettings" class="tab-btn" type="button">
         <span class="tab-icon">⚙️</span>
         <span>Cài đặt</span>
@@ -74,7 +78,46 @@
       </section>
     </main>
 
-    <!-- TAB 2: CÀI ĐẶT -->
+    <!-- TAB 2: XÓA LOGO RIÊNG LẺ / HÀNG LOẠT -->
+    <section id="paneWatermark" class="tab-pane">
+      <section class="block">
+        <div id="wmDropZone" class="wm-dropzone">
+          <span class="wm-drop-icon">📥</span>
+          <div class="wm-drop-text">
+            <b>Kéo thả ảnh vào đây</b> hoặc bấm để chọn
+          </div>
+          <p class="hint">Hỗ trợ PNG, JPG, JPEG, WebP. Tải một hoặc nhiều ảnh cùng lúc.</p>
+          <input id="wmFileInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
+          <button id="wmBrowseBtn" class="btn btn--ghost" type="button">📁 Chọn ảnh từ máy</button>
+        </div>
+      </section>
+
+      <div class="wm-toolbar" id="wmToolbar" style="display: none;">
+        <span id="wmCount" class="count">0 ảnh</span>
+        <button id="wmClearBtn" class="btn btn--ghost btn--sm" type="button">🗑️ Xóa hết</button>
+      </div>
+
+      <div class="actions">
+        <button id="wmProcessBtn" class="btn btn--primary" type="button" disabled>
+          <span>✨ Xóa Logo Watermark</span>
+        </button>
+        <button id="wmDownloadAllBtn" class="btn btn--ghost" type="button" style="display: none;">
+          <span>⬇️ Tải tất cả ảnh</span>
+        </button>
+      </div>
+
+      <section class="block">
+        <div class="qhead">
+          <span class="lbl">Danh sách ảnh</span>
+          <span id="wmProgress" class="count">—</span>
+        </div>
+        <div id="wmList" class="wm-list">
+          <div class="wm-empty">Chưa có ảnh nào được tải lên. Kéo thả hoặc bấm nút ở trên để thêm ảnh.</div>
+        </div>
+      </section>
+    </section>
+
+    <!-- TAB 3: CÀI ĐẶT -->
     <section id="paneSettings" class="tab-pane">
       <!-- Nhóm 1: Tùy chọn xử lý ảnh -->
       <div class="settings-group">
@@ -206,6 +249,7 @@
     </section>
 
     <script src="lib/watermark.js"></script>
+    <script src="scripts/watermark-tab.js"></script>
     <script src="sidepanel.js"></script>
   </body>
 </html>
